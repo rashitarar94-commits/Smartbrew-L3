@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}History – SmartBrew AI{% endblock %}
+{% block content %}
+<h1>🕘 Order history</h1>
+<p class="small">Every completed transaction is recorded with its customisation parameters.</p>
+<div class="card" style="overflow-x:auto">
+<table>
+  <tr><th>Date</th><th>Drink</th><th>Customisation</th><th>Price</th><th>Payment</th><th></th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.tx.created_at.replace('T', ' ') }}</td>
+    <td>{{ r.tx.drink_name }}</td>
+    <td class="small">{{ r.summary }}</td>
+    <td>€{{ '%.2f'|format(r.tx.price) }}</td>
+    <td class="small">{{ methods.get(r.tx.payment_method, r.tx.payment_method) }}{% if r.tx.offline %} (offline){% endif %}</td>
+    <td class="row">
+      {% if not r.tx.receipt_no.startswith('SEED') %}<a class="btn small" href="{{ url_for('orders.receipt', receipt_no=r.tx.receipt_no) }}">Receipt</a>{% endif %}
+      <a class="btn small" href="{{ url_for('orders.checkout', drink_id=r.tx.drink_id, options=r.options_json) }}">Re-order</a>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6">No orders yet.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

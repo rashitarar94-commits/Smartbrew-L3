@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Register – SmartBrew AI{% endblock %}
+{% block content %}
+<h1>Create your account</h1>
+<form class="card stack" method="post">
+  <label>Username <input name="username" value="{{ form.get('username', '') }}" required minlength="3" maxlength="30" autocomplete="username"></label>
+  <label>Email <input name="email" type="email" value="{{ form.get('email', '') }}" required autocomplete="email"></label>
+  <label>Password <input name="password" type="password" required minlength="8" autocomplete="new-password">
+    <span class="small">At least 8 characters, with a letter and a digit.</span></label>
+  <label>Confirm password <input name="confirm" type="password" required autocomplete="new-password"></label>
+  <button class="btn primary">Register</button>
+</form>
+{% endblock %}

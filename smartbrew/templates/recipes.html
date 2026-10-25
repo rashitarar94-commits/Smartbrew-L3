@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}My recipes – SmartBrew AI{% endblock %}
+{% block content %}
+<h1>⭐ My recipes</h1>
+{% if not rows %}
+<p>No recipes yet. Open any drink in the <a href="{{ url_for('shop.menu') }}">menu</a>, customise it, and press <em>Save as recipe</em>.</p>
+{% endif %}
+<div class="grid">
+  {% for row in rows %}
+  <div class="card drink" style="pointer-events:auto">
+    <span class="name">{{ row.recipe.name }}</span>
+    <span class="cat">{{ row.recipe.drink_name }}</span>
+    <span class="small">{{ row.q.summary }}</span>
+    <span class="price">€{{ '%.2f'|format(row.q.price) }}</span>
+    {% if not row.q.available %}<span class="reason">⚠ {{ row.q.reason }}</span>{% endif %}
+    <div class="row">
+      <a class="btn primary small {{ 'disabled' if not row.q.available }}" href="{{ url_for('shop.order_recipe', recipe_id=row.recipe.id) }}">⚡ Order</a>
+      <a class="btn small" href="{{ url_for('shop.drink_page', drink_id=row.recipe.drink_id, recipe=row.recipe.id) }}">Edit</a>
+      <form method="post" action="{{ url_for('shop.delete_recipe', recipe_id=row.recipe.id) }}" onsubmit="return confirm('Delete this recipe?')">
+        <button class="btn small danger">Delete</button></form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Mood suggestion – SmartBrew AI{% endblock %}
+{% block content %}
+<h1>🙂 How are you feeling?</h1>
+<div class="two-col">
+  <div class="card">
+    <h2>📷 Camera analysis</h2>
+    <p class="small"><strong>Privacy:</strong> the frame is analysed in memory and discarded immediately.
+      It is never saved on the machine or sent to external servers. Only the mood label is kept for this session.</p>
+    <label class="row" style="font-weight:600"><input type="checkbox" id="consent" style="min-height:auto;width:22px;height:22px"> I consent to a one-time analysis of my facial expression</label>
+    <div class="row" style="margin:10px 0">
+      <button class="btn" id="start-cam" disabled>Start camera</button>
+      <button class="btn primary" id="snap" disabled>Analyse my mood</button>
+    </div>
+    <video id="video" autoplay playsinline muted width="320" height="240" hidden></video>
+    <canvas id="canvas" width="320" height="240" hidden></canvas>
+    <p class="small">No camera? Upload a photo instead (also processed in memory only):</p>
+    <input type="file" id="upload" accept="image/*" disabled>
+  </div>
+  <div class="card">
+    <h2>…or pick it yourself</h2>
+    <div class="row">
+      {% for m in moods %}<button class="btn manual" data-mood="{{ m }}">{{ {'tired':'😴','happy':'😄','stressed':'😣','neutral':'😐'}[m] }} {{ m|capitalize }}</button>{% endfor %}
+    </div>
+    <div id="result" style="margin-top:16px">{% if current %}<p>Current mood: <strong>{{ current }}</strong></p>{% endif %}</div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const consent = document.getElementById("consent"), startBtn = document.getElementById("start-cam"),
+        snapBtn = document.getElementById("snap"), upload = document.getElementById("upload"),
+        video = document.getElementById("video"), canvas = document.getElementById("canvas"),
+        result = document.getElementById("result");
+  let stream = null;
+  consent.addEventListener("change", () => { startBtn.disabled = upload.disabled = !consent.checked; if (!consent.checked) stopCam(); });
+  function stopCam() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; video.hidden = true; snapBtn.disabled = true; }
+  startBtn.onclick = async () => {
+    try { stream = await navigator.mediaDevices.getUserMedia({video: true}); video.srcObject = stream; video.hidden = false; snapBtn.disabled = false; }
+    catch (e) { result.innerHTML = "<p>Camera not available – please upload a photo or pick your mood.</p>"; }
+  };
+  snapBtn.onclick = () => {
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    stopCam();
+    send({consent: true, image: dataUrl});
+  };
+  upload.onchange = () => {
+    const f = upload.files[0]; if (!f) return;
+    const r = new FileReader(); r.onload = () => { send({consent: true, image: r.result}); upload.value = ""; }; r.readAsDataURL(f);
+  };
+  document.querySelectorAll(".manual").forEach(b => b.onclick = () => send({mood: b.dataset.mood}));
+  async function send(body) {
+    result.innerHTML = "<p>Analysing…</p>";
+    const res = await fetch("{{ url_for('shop.api_mood') }}", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    const d = await res.json();
+    if (!res.ok) { result.innerHTML = "<p class='flash error'>" + d.error + "</p>"; return; }
+    const s = d.suggestion;
+    result.innerHTML = `<p>Estimated mood: <strong>${d.mood}</strong> <span class="small">(${d.source}, confidence ${Math.round(d.confidence*100)}%)</span></p>` +
+      (s.drink ? `<div class="card drink recommended"><span class="badge">Tailored for you</span><span class="name">${s.drink}</span>
+        <span class="small">${s.summary}</span><span class="reason">${s.explanation}</span><span class="price">€${s.price.toFixed(2)}</span>
+        <a class="btn primary" href="${s.url}">Customise &amp; order →</a></div>` : `<p>${s.explanation}</p>`) +
+      `<p class="small">The menu is now re-ranked for this mood.</p>`;
+  }
+</script>
+{% endblock %}

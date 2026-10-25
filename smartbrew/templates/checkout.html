@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Checkout – SmartBrew AI{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('shop.drink_page', drink_id=drink.id, options=options_json) }}">← Change customisation</a></p>
+<h1>Checkout</h1>
+<div class="two-col">
+  <form class="card" method="post" action="{{ url_for('orders.place_order') }}">
+    <input type="hidden" name="drink_id" value="{{ drink.id }}">
+    <input type="hidden" name="options" value="{{ options_json }}">
+    <div class="field"><span class="lbl">Payment method</span>
+      <div class="seg" style="flex-direction:column">
+      {% for key, label in methods.items() %}
+        {% set wallet = key in ('apple_pay', 'google_pay') %}
+        <input type="radio" name="payment_method" id="pm-{{ key }}" value="{{ key }}"
+               {{ 'disabled' if wallet and not online }}
+               {{ 'checked' if (key == 'prepaid' and g.user and g.user.nfc_uid) or (key == 'card' and not (g.user and g.user.nfc_uid)) }}>
+        <label for="pm-{{ key }}">{{ label }}{% if wallet and not online %} – unavailable offline{% endif %}{% if key == 'card' and not online %} – offline processing{% endif %}</label>
+      {% endfor %}
+      </div></div>
+    <div class="field" id="prepaid-box"><label>Prepaid card UID (tap)
+      <input name="prepaid_uid" value="{{ g.user.nfc_uid if g.user and g.user.nfc_uid else '' }}" placeholder="Tap your employee card"></label>
+      {% if g.user and g.user.nfc_uid %}<span class="small">Balance: €{{ '%.2f'|format(g.user.prepaid_balance) }}</span>{% endif %}
+    </div>
+    <div class="field"><span class="lbl">Receipt</span>
+      <div class="seg">
+        <input type="radio" name="receipt_method" id="rm-qr" value="qr" checked><label for="rm-qr">QR code</label>
+        <input type="radio" name="receipt_method" id="rm-email" value="email"><label for="rm-email">Email</label>
+      </div>
+      <input name="email" type="email" placeholder="you@example.com" value="{{ g.user.email if g.user else '' }}" style="margin-top:8px;width:100%" aria-label="Email for receipt">
+    </div>
+    <button class="btn primary" style="width:100%" {{ 'disabled' if not q.available }}>Pay €{{ '%.2f'|format(q.price) }} &amp; brew</button>
+    <p class="small">Payments are simulated. No card number is ever entered or stored.</p>
+  </form>
+  <div class="card">
+    <h2>{{ drink.name }}{% if recipe %} <span class="badge">⭐ {{ recipe }}</span>{% endif %}</h2>
+    <p>{{ q.summary }}</p>
+    <div class="bigprice">€{{ '%.2f'|format(q.price) }}</div>
+    {% if not q.available %}<p><span class="badge bad">Unavailable: {{ q.reason }}</span></p>{% endif %}
+    <p class="small">{{ q.nutrition.kcal }} kcal · {{ q.nutrition.sugar_g }} g sugar · {{ q.nutrition.caffeine_mg }} mg caffeine</p>
+  </div>
+</div>
+{% endblock %}

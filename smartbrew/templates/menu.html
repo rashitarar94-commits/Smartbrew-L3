@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+{% if halted %}<div class="banner halt">⛔ Operations halted: {{ halted }}</div>{% endif %}
+
+<div class="context">
+  <span>🕒 {{ ctx.period|capitalize }} ({{ ctx.hour }}:00)</span>
+  {% if ctx.weather %}<span>🌤 {{ ctx.weather.condition|capitalize }}, {{ ctx.weather.temp|round|int }}°C</span>
+  {% else %}<span>🌐 Weather unavailable (offline)</span>{% endif %}
+  {% if mood %}<span>🙂 Mood: {{ mood }}
+    <form method="post" action="{{ url_for('shop.clear_mood') }}" style="display:inline"><button class="btn small" title="Forget mood">✕</button></form></span>{% endif %}
+  {% if g.user %}<span>👋 Hi {{ g.user.username }}</span>{% endif %}
+</div>
+
+{% if recipes %}
+<h2>⚡ One-touch: my recipes</h2>
+<div class="row">
+  {% for r in recipes %}
+  <a class="btn" href="{{ url_for('shop.order_recipe', recipe_id=r.id) }}">⭐ {{ r.name }} <span class="small">({{ r.drink_name }})</span></a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if top and not category %}
+<h2>✨ Recommended for you</h2>
+<div class="grid">
+  {% for i in top %}
+  <a class="card drink recommended" href="{{ url_for('shop.drink_page', drink_id=i.drink.id, options=i.options|tojson) }}">
+    <span class="badge">#{{ loop.index }} Recommended</span>
+    <span class="name">{{ i.drink.name }}</span>
+    <span class="reason">{{ i.reasons|join(' · ') or 'Popular choice' }}</span>
+    <span class="price">€{{ '%.2f'|format(i.price) }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2>Menu</h2>
+<div class="tabs">
+  <a href="{{ url_for('shop.menu') }}" class="{{ 'active' if not category }}">All (by score)</a>
+  {% for c in categories %}
+  <a href="{{ url_for('shop.menu', category=c) }}" class="{{ 'active' if category == c }}">{{ c }}</a>
+  {% endfor %}
+</div>
+<div class="grid" id="menu">
+  {% for i in items %}
+  <a class="card drink {{ 'recommended' if i.recommended }} {{ 'disabled' if not i.available }}"
+     data-drink="{{ i.drink.name }}" data-available="{{ 1 if i.available else 0 }}" data-score="{{ i.score }}"
+     href="{{ url_for('shop.drink_page', drink_id=i.drink.id, options=i.options|tojson) }}"
+     {% if not i.available %}aria-disabled="true" tabindex="-1"{% endif %}>
+    {% if not i.available %}<span class="badge bad">Unavailable</span>{% elif i.recommended %}<span class="badge">Recommended</span>{% endif %}
+    <span class="name">{{ i.drink.name }}</span>
+    <span class="cat">{{ i.drink.category }} · score {{ i.score|round|int }}</span>
+    <span class="small">{{ i.drink.description }}</span>
+    {% if not i.available %}<span class="reason">⚠ {{ i.reason }}</span>
+    {% elif i.reasons %}<span class="reason">{{ i.reasons|join(' · ') }}</span>{% endif %}
+    <span class="price">€{{ '%.2f'|format(i.price) }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

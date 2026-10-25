@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Event log – SmartBrew AI{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('admin.dashboard') }}">← Dashboard</a></p>
+<h1>📜 Event log</h1>
+<form class="row card" method="get">
+  <label>Type <select name="type"><option value="">all</option>{% for t in types %}<option {{ 'selected' if t == type_ }}>{{ t }}</option>{% endfor %}</select></label>
+  <label>Severity <select name="severity"><option value="">all</option>{% for s in ['info','warning','critical'] %}<option {{ 'selected' if s == severity }}>{{ s }}</option>{% endfor %}</select></label>
+  <button class="btn">Filter</button>
+  <a class="btn" href="{{ url_for('admin.api_events', type=type_ or '', severity=severity or '', download=1) }}">⬇ Export JSON (remote diagnostics)</a>
+</form>
+<div class="card" style="margin-top:12px;overflow-x:auto">
+<table>
+  <tr><th>Time</th><th>Type</th><th>Severity</th><th>Message</th><th>Actor</th></tr>
+  {% for e in events %}
+  <tr><td class="small">{{ e.ts.replace('T', ' ') }}</td><td>{{ e.type }}</td>
+      <td><span class="badge {{ 'bad' if e.severity == 'critical' else 'warn' if e.severity == 'warning' else 'ok' }}">{{ e.severity }}</span></td>
+      <td>{{ e.message }}</td><td class="small">{{ e.actor or '' }}</td></tr>
+  {% else %}<tr><td colspan="5">No events.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

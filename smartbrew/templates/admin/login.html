@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Admin mode – SmartBrew AI{% endblock %}
+{% block content %}
+<h1>🔧 Secure administrative mode</h1>
+<p class="small">Reserved for maintenance personnel. Every attempt is logged.</p>
+<div class="grid">
+  <form class="card stack" method="post">
+    <input type="hidden" name="method" value="pin">
+    <h2>Technician PIN</h2>
+    <input name="secret" type="password" inputmode="numeric" placeholder="PIN" required aria-label="PIN" autocomplete="off">
+    <button class="btn primary">Enter</button>
+  </form>
+  <form class="card stack" method="post">
+    <input type="hidden" name="method" value="master_card">
+    <h2>NFC master card</h2>
+    <input name="secret" placeholder="Tap master card (UID)" required aria-label="Master card UID" autocomplete="off">
+    <button class="btn">Tap</button>
+  </form>
+  <form class="card stack" method="post">
+    <input type="hidden" name="method" value="key">
+    <h2>Physical key</h2>
+    <input name="secret" placeholder="Key ID read by the lock sensor" required aria-label="Key ID" autocomplete="off">
+    <button class="btn">Turn key</button>
+  </form>
+</div>
+{% endblock %}

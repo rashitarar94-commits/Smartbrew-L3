@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Profile – SmartBrew AI{% endblock %}
+{% block content %}
+<h1>👤 {{ g.user.username }}</h1>
+<p class="small">{{ g.user.email }}</p>
+<div class="two-col">
+  <form class="card stack" method="post">
+    <input type="hidden" name="action" value="prefs">
+    <h2>Preference profile</h2>
+    <p class="small">Used as defaults in the customiser and by recommendations.</p>
+    <label>Default milk
+      <select name="pref_milk">{% for k, v in milks.items() %}<option value="{{ k }}" {{ 'selected' if g.user.pref_milk == k }}>{{ v }}</option>{% endfor %}</select></label>
+    <label>Default strength (1–5) <input type="number" name="pref_strength" min="1" max="5" value="{{ g.user.pref_strength }}"></label>
+    <label>Default temperature
+      <select name="pref_temperature">{% for t in temps %}<option value="{{ t }}" {{ 'selected' if g.user.pref_temperature == t }}>{{ t.replace('_',' ') }}</option>{% endfor %}</select></label>
+    <button class="btn primary">Save preferences</button>
+  </form>
+  <div>
+    <div class="card">
+      <h2>📶 NFC card</h2>
+      {% if g.user.nfc_uid %}
+        <p>Linked card: <code>{{ g.user.nfc_uid }}</code></p>
+        <form method="post"><input type="hidden" name="action" value="unlink_card"><button class="btn danger small">Unlink card</button></form>
+      {% else %}
+        <form method="post" class="row">
+          <input type="hidden" name="action" value="link_card">
+          <input name="card_uid" placeholder="Tap / enter card UID" required aria-label="Card UID">
+          <button class="btn">Link card</button>
+        </form>
+      {% endif %}
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h2>💳 Prepaid employee card</h2>
+      <p>Balance: <strong>€{{ '%.2f'|format(g.user.prepaid_balance) }}</strong></p>
+      <p class="small">Your linked NFC badge is also your prepaid employee card.</p>
+      <form method="post"><input type="hidden" name="action" value="topup"><button class="btn small">+ €10 employer top-up (simulated)</button></form>
+    </div>
+  </div>
+</div>
+{% endblock %}

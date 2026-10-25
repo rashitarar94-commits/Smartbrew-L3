@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Ask SmartBrew – SmartBrew AI{% endblock %}
+{% block content %}
+<h1>💬 Describe your drink</h1>
+<p class="small">Optional module: natural-language requests are translated into explicit machine settings, which you confirm before anything is brewed.
+  The prototype uses a rule-based interpreter that a local LLM can replace.</p>
+<form class="card row" id="ask">
+  <input id="text" style="flex:1" placeholder="e.g. Give me something sweet with a kick, but low on dairy" aria-label="Your request" maxlength="300">
+  <button class="btn primary">Interpret</button>
+</form>
+<div class="row" style="margin-top:8px">
+  {% for ex in ["Give me something sweet with a kick, but low on dairy", "A large iced coffee, no milk", "Something warm and calming, lactose free", "Small mild latte, a bit sweet"] %}
+  <button class="btn small example">{{ ex }}</button>
+  {% endfor %}
+</div>
+<div id="out" style="margin-top:16px"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const out = document.getElementById("out"), text = document.getElementById("text");
+  document.querySelectorAll(".example").forEach(b => b.onclick = () => { text.value = b.textContent; ask(); });
+  document.getElementById("ask").onsubmit = e => { e.preventDefault(); ask(); };
+  async function ask() {
+    const res = await fetch("{{ url_for('shop.api_assistant') }}", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({text: text.value})});
+    const d = await res.json();
+    if (!res.ok) { out.innerHTML = "<p class='flash error'>" + d.error + "</p>"; return; }
+    out.innerHTML = `<div class="card"><h2>Proposal: ${d.drink}</h2><p>${d.summary} · <strong>€${d.price.toFixed(2)}</strong></p>
+      <ul>${d.steps.map(s => "<li class='small'>" + s + "</li>").join("")}</ul>
+      ${d.available ? `<a class="btn primary" href="${d.url}">Looks good – review &amp; order →</a>` : `<span class="badge bad">Unavailable: ${d.reason}</span>`}</div>`;
+  }
+</script>
+{% endblock %}

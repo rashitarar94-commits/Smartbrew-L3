@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Admin dashboard – SmartBrew AI{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between">
+  <h1>🔧 Maintenance dashboard</h1>
+  <div class="row">
+    <a class="btn" href="{{ url_for('admin.events') }}">📜 Event log</a>
+    <form method="post" action="{{ url_for('admin.logout') }}"><button class="btn">Exit admin mode</button></form>
+  </div>
+</div>
+<div id="halt"></div>
+
+<div class="two-col">
+  <div class="card">
+    <h2>🚨 Live errors <span class="small" id="updated"></span></h2>
+    <div id="faults"><p class="small">Loading…</p></div>
+    <form method="post" action="{{ url_for('admin.inject_fault') }}" class="row" style="margin-top:10px">
+      <select name="code" aria-label="Fault to simulate">
+        {% for code, f in faults.items() if code in ('GRINDER_JAMMED', 'WATER_HEATER_FAULT', 'MILK_FROTHER_FAULT') %}<option value="{{ code }}">{{ f[0] }}</option>{% endfor %}
+      </select>
+      <button class="btn small">Simulate sensor fault</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>🗑 Waste bins</h2>
+    <div id="bins"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;overflow-x:auto">
+  <h2>📦 Ingredients</h2>
+  <table id="ingredients"></table>
+</div>
+
+<div class="two-col" style="margin-top:16px">
+  <div class="card">
+    <h2>📜 Recent events</h2>
+    <table id="events" class="small"></table>
+  </div>
+  <form class="card stack" method="post" action="{{ url_for('admin.simulation') }}">
+    <h2>🧪 Simulation panel (demo only)</h2>
+    <label class="row" style="font-weight:600"><input type="checkbox" name="network_online" {{ 'checked' if sim.network_online == '1' }} style="min-height:auto;width:22px;height:22px"> Network online</label>
+    <label>Outside temperature (°C) <input type="number" step="0.5" name="weather_temp" value="{{ sim.weather_temp }}"></label>
+    <label>Weather
+      <select name="weather_condition">{% for c in conditions %}<option {{ 'selected' if sim.weather_condition == c }}>{{ c }}</option>{% endfor %}</select></label>
+    <label>Time-of-day override (hour 0–23, empty = real clock) <input name="time_override" value="{{ sim.time_override }}" inputmode="numeric"></label>
+    <button class="btn primary">Apply</button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // FR-36: the dashboard polls the live status every 3 seconds.
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const urls = { status: "{{ url_for('admin.api_status') }}", refill: "{{ url_for('admin.refill') }}",
+                 level: "{{ url_for('admin.set_level') }}", resolve: "/admin/faults/ID/resolve",
+                 empty: "/admin/bins/NAME/empty", simBin: "/admin/bins/NAME/simulate" };
+  async function resolveFault(id) {
+    await fetch(urls.resolve.replace("ID", id), {method: "POST", headers: {Accept: "application/json"}});
+    refresh();
+  }
+  async function refresh() {
+    const res = await fetch(urls.status);
+    if (res.status === 403) { location.href = "{{ url_for('admin.login') }}"; return; }
+    const d = await res.json();
+    document.getElementById("updated").textContent = "updated " + new Date().toLocaleTimeString();
+    document.getElementById("halt").innerHTML = d.halted ? `<div class="banner halt">⛔ ${esc(d.halted)}</div>` : "";
+    document.getElementById("faults").innerHTML = d.faults.length ? d.faults.map(f =>
+      `<div class="fault ${esc(f.severity)}"><span><strong>${esc(f.message)}</strong><br><span class="small">${esc(f.code)} · ${esc(f.created_at.replace("T", " "))}</span></span>
+       <button class="btn small" onclick="resolveFault(${f.id})">Resolve</button></div>`).join("") : "<p>✅ No active errors.</p>";
+    document.getElementById("bins").innerHTML = d.bins.map(b => `
+      <div style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><strong>${esc(b.label)}</strong>
+        <span class="badge ${b.state === "Full" ? "bad" : b.state === "Warning" ? "warn" : "ok"}">${esc(b.state)} · ${b.pct}%</span></div>
+        <div class="bar ${b.state === "Full" ? "full" : b.state === "Warning" ? "low" : ""}"><div style="width:${b.pct}%"></div></div>
+        <div class="row" style="margin-top:6px">
+          <form method="post" action="${urls.empty.replace("NAME", b.name)}"><button class="btn small">Mark emptied</button></form>
+          <form method="post" action="${urls.simBin.replace("NAME", b.name)}" class="row"><input name="pct" type="number" min="0" max="100" value="85" style="width:80px" aria-label="Fill %"><button class="btn small">Simulate fill %</button></form>
+        </div></div>`).join("");
+    document.getElementById("ingredients").innerHTML = "<tr><th>Ingredient</th><th>Level</th><th></th><th>Refill</th></tr>" + d.ingredients.map(i => `
+      <tr><td>${esc(i.label)} ${i.low ? '<span class="badge warn">LOW</span>' : ""}</td>
+        <td>${+i.level.toFixed(1)} / ${i.capacity} ${esc(i.unit)}</td>
+        <td><div class="bar ${i.low ? "low" : ""}"><div style="width:${i.pct}%"></div></div></td>
+        <td class="row">
+          <form method="post" action="${urls.refill}" class="row"><input type="hidden" name="ingredient" value="${esc(i.name)}">
+            <input name="quantity" type="number" min="1" step="any" placeholder="+qty" style="width:90px" aria-label="Refill quantity"><button class="btn small">Add</button></form>
+          <form method="post" action="${urls.refill}"><input type="hidden" name="ingredient" value="${esc(i.name)}"><input type="hidden" name="reset" value="1"><button class="btn small primary">Reset to max</button></form>
+          <form method="post" action="${urls.level}"><input type="hidden" name="ingredient" value="${esc(i.name)}"><input type="hidden" name="level" value="0"><button class="btn small danger" title="Demo: empty this container">Empty (demo)</button></form>
+        </td></tr>`).join("");
+    document.getElementById("events").innerHTML = d.events.map(e =>
+      `<tr><td>${esc(e.ts.slice(11))}</td><td><span class="badge ${e.severity === "critical" ? "bad" : e.severity === "warning" ? "warn" : "ok"}">${esc(e.type)}</span></td><td>${esc(e.message)}</td></tr>`).join("");
+  }
+  refresh();
+  // Only re-render the live parts when the user is not typing into a form.
+  setInterval(() => { if (!document.activeElement || !["INPUT", "SELECT"].includes(document.activeElement.tagName)) refresh(); }, 3000);
+</script>
+{% endblock %}

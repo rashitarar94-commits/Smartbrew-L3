@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Receipt {{ tx.receipt_no }} – SmartBrew AI{% endblock %}
+{% block content %}
+<h1>🧾 Receipt #{{ tx.receipt_no }}</h1>
+<div class="two-col">
+  <div class="card">
+    <table>
+      <tr><th>Date</th><td>{{ tx.created_at.replace('T', ' ') }}</td></tr>
+      <tr><th>Item</th><td>{{ tx.drink_name }}<br><span class="small">{{ summary }}</span></td></tr>
+      <tr><th>Total</th><td><strong>€{{ '%.2f'|format(tx.price) }}</strong></td></tr>
+      <tr><th>Paid with</th><td>{{ method }}{% if tx.offline %} <span class="badge warn">offline – pending sync</span>{% endif %}</td></tr>
+      <tr><th>Reference</th><td><code>{{ tx.payment_ref }}</code></td></tr>
+    </table>
+    <h2>✉ Email receipt</h2>
+    <form method="post" action="{{ url_for('orders.email_receipt', receipt_no=tx.receipt_no) }}" class="row">
+      <input type="email" name="email" value="{{ email }}" placeholder="you@example.com" required aria-label="Email" style="flex:1">
+      <button class="btn">Send</button>
+    </form>
+    <p style="margin-top:16px"><a class="btn primary" href="{{ url_for('shop.menu') }}">Done</a></p>
+  </div>
+  <div class="card" style="text-align:center">
+    <h2>Scan for your receipt</h2>
+    <img class="qr" src="{{ url_for('orders.receipt_qr', receipt_no=tx.receipt_no) }}" alt="Receipt QR code">
+    <p class="small">The QR code contains the full receipt, so it works without network access.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ drink.name }} – SmartBrew AI{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('shop.menu') }}">← Menu</a></p>
+<h1>{{ drink.name }} {% if recipe %}<span class="badge">Editing recipe “{{ recipe.name }}”</span>{% endif %}</h1>
+<p class="small">{{ drink.category }} · {{ drink.description }}</p>
+
+<div class="two-col">
+  <form class="card" id="customiser" onsubmit="return false">
+    <div class="field"><span class="lbl">Size</span>
+      <div class="seg">{% for s in ['S','M','L'] %}
+        <input type="radio" name="size" id="size-{{ s }}" value="{{ s }}" {{ 'checked' if q.options.size == s }}><label for="size-{{ s }}">{{ s }}</label>
+      {% endfor %}</div></div>
+
+    <div class="field"><span class="lbl">Milk {% if not has_milk %}<span class="small">(optional splash)</span>{% endif %}</span>
+      <div class="seg">{% for key, label in milks.items() %}{% if has_milk and key == 'none' %}{% else %}
+        <input type="radio" name="milk" id="milk-{{ key }}" value="{{ key }}" {{ 'checked' if q.options.milk == key }}><label for="milk-{{ key }}">{{ label }}</label>
+      {% endif %}{% endfor %}</div></div>
+
+    {% if has_coffee %}
+    <div class="field"><span class="lbl">Coffee strength: <span id="strength-val">{{ q.options.strength }}</span>/5</span>
+      <input type="range" name="strength" min="1" max="5" value="{{ q.options.strength }}" style="width:100%"></div>
+    <div class="field"><label class="row" style="font-weight:600"><input type="checkbox" name="extra_shot" {{ 'checked' if q.options.extra_shot }} style="min-height:auto;width:22px;height:22px"> Extra espresso shot (+€0.50)</label></div>
+    {% endif %}
+
+    {% if not drink.is_cold %}
+    <div class="field"><span class="lbl">Temperature</span>
+      <div class="seg">{% for t in temps %}
+        <input type="radio" name="temperature" id="temp-{{ t }}" value="{{ t }}" {{ 'checked' if q.options.temperature == t }}><label for="temp-{{ t }}">{{ t.replace('_', ' ')|capitalize }}</label>
+      {% endfor %}</div></div>
+    {% endif %}
+
+    <div class="field"><span class="lbl">Vanilla syrup shots (+€0.40 each)</span>
+      <div class="seg">{% for n in range(4) %}
+        <input type="radio" name="syrup" id="syrup-{{ n }}" value="{{ n }}" {{ 'checked' if q.options.syrup == n }}><label for="syrup-{{ n }}">{{ n }}</label>
+      {% endfor %}</div></div>
+  </form>
+
+  <div>
+    <div class="card">
+      <div class="bigprice" id="price">€{{ '%.2f'|format(q.price) }}</div>
+      <div class="small" id="summary">{{ q.summary }}</div>
+      <div id="avail" style="margin:8px 0">{% if not q.available %}<span class="badge bad">Unavailable: {{ q.reason }}</span>{% endif %}</div>
+      <h2>Nutrition (this configuration)</h2>
+      <table class="nutri">
+        <tr><td>Energy</td><td id="n-kcal">{{ q.nutrition.kcal }} kcal</td></tr>
+        <tr><td>Sugar</td><td id="n-sugar">{{ q.nutrition.sugar_g }} g</td></tr>
+        <tr><td>Fat</td><td id="n-fat">{{ q.nutrition.fat_g }} g</td></tr>
+        <tr><td>Caffeine</td><td id="n-caf">{{ q.nutrition.caffeine_mg }} mg</td></tr>
+        <tr><td>Allergens</td><td id="n-all">{{ q.nutrition.allergens|join(', ') or 'none' }}</td></tr>
+      </table>
+      <form method="get" action="{{ url_for('orders.checkout') }}" style="margin-top:14px">
+        <input type="hidden" name="drink_id" value="{{ drink.id }}">
+        <input type="hidden" name="options" class="opts-json">
+        <button class="btn primary" id="order-btn" style="width:100%" {{ 'disabled' if not q.available }}>Order &amp; pay →</button>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      {% if g.user %}
+        {% if recipe %}
+        <form method="post" action="{{ url_for('shop.update_recipe', recipe_id=recipe.id) }}" class="row">
+          <input type="hidden" name="options" class="opts-json">
+          <input name="name" value="{{ recipe.name }}" required maxlength="40" aria-label="Recipe name" style="flex:1">
+          <button class="btn primary">Update recipe</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('shop.create_recipe') }}" class="row">
+          <input type="hidden" name="drink_id" value="{{ drink.id }}">
+          <input type="hidden" name="options" class="opts-json">
+          <input name="name" placeholder="Name this recipe, e.g. Monday fuel" required maxlength="40" aria-label="Recipe name" style="flex:1">
+          <button class="btn">⭐ Save as recipe</button>
+        </form>
+        {% endif %}
+      {% else %}
+        <p class="small"><a href="{{ url_for('auth.login', next=request.full_path) }}">Log in</a> to save this as a custom recipe.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // FR-10/FR-11: live price, nutrition and availability for every change.
+  const form = document.getElementById("customiser");
+  const drinkId = {{ drink.id }};
+  function readOptions() {
+    const fd = new FormData(form);
+    return { size: fd.get("size"), milk: fd.get("milk") || "none", strength: fd.get("strength") || 3,
+             temperature: fd.get("temperature") || "cold", syrup: fd.get("syrup") || 0,
+             extra_shot: fd.get("extra_shot") === "on" };
+  }
+  function syncHidden(opts) { document.querySelectorAll(".opts-json").forEach(i => i.value = JSON.stringify(opts)); }
+  async function update() {
+    const res = await fetch("{{ url_for('shop.api_quote') }}", { method: "POST",
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify({drink_id: drinkId, options: readOptions()}) });
+    const q = await res.json();
+    document.getElementById("price").textContent = "€" + q.price.toFixed(2);
+    document.getElementById("summary").textContent = q.summary;
+    document.getElementById("n-kcal").textContent = q.nutrition.kcal + " kcal";
+    document.getElementById("n-sugar").textContent = q.nutrition.sugar_g + " g";
+    document.getElementById("n-fat").textContent = q.nutrition.fat_g + " g";
+    document.getElementById("n-caf").textContent = q.nutrition.caffeine_mg + " mg";
+    document.getElementById("n-all").textContent = q.nutrition.allergens.join(", ") || "none";
+    document.getElementById("avail").innerHTML = q.available ? "" : '<span class="badge bad">Unavailable: ' + q.reason + "</span>";
+    document.getElementById("order-btn").disabled = !q.available;
+    for (const [milk, ok] of Object.entries(q.milk_available)) {
+      const el = document.getElementById("milk-" + milk);
+      if (el && !el.checked) el.disabled = !ok;
+    }
+    const sv = document.getElementById("strength-val"); if (sv) sv.textContent = q.options.strength;
+    syncHidden(q.options);
+  }
+  form.addEventListener("input", update);
+  syncHidden({{ q.options|tojson }});
+  update();
+</script>
+{% endblock %}
