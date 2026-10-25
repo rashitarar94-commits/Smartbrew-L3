@@ -51,6 +51,7 @@ Browser (kiosk UI) ──HTTP──▶ Flask app (smartbrew/)
 ├── samples/                synthetic face images for the mood demo (no webcam needed)
 ├── tools/                  helper script that regenerates samples/
 └── docs/
+    ├── Lab3_G33_TaskA_TaskB_Report.docx   Word report of Tasks A + B (built by tools/build_report.py)
     ├── taskA/              00 system description … 05 prompt log
     └── taskB/              feature selection + simulated components
 ```
