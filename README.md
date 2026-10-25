@@ -1,5 +1,7 @@
 # SmartBrew AI – Lab Assignment 3 (Software Engineering with LLMs)
 
+**Repository:** https://github.com/rashitarar94-commits/Smartbrew-L3
+
 SmartBrew AI is an interactive, AI-assisted coffee machine for offices and
 lounges, as described in the course System Description. This repository
 contains:
@@ -71,7 +73,7 @@ No compiler, Node.js, or external database is needed.
 **Windows (PowerShell):**
 
 ```powershell
-git clone <this-repository-url> smartbrew
+git clone https://github.com/rashitarar94-commits/Smartbrew-L3.git smartbrew
 cd smartbrew
 py -3 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
@@ -80,7 +82,7 @@ py -3 -m venv .venv
 **macOS / Linux:**
 
 ```bash
-git clone <this-repository-url> smartbrew && cd smartbrew
+git clone https://github.com/rashitarar94-commits/Smartbrew-L3.git smartbrew && cd smartbrew
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
